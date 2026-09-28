@@ -1,0 +1,59 @@
+@startuml Marketplace C4
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, "User", "Покупатель или продавец")
+
+System_Boundary(marketplace, "Marketplace") {
+
+Container(api, "API Gateway", "Go", "Единая точка входа")
+
+Container(userService, "User Service", "Go", "Управление пользователями")
+Container(catalogService, "Catalog Service", "Go", "Каталог товаров")
+Container(orderService, "Order Service", "Go", "Заказы")
+Container(paymentService, "Payment Service", "Go", "Платежи")
+Container(notificationService, "Notification Service", "Go", "Уведомления")
+Container(recommendationService, "Recommendation Service", "Go", "Персональная выдача")
+
+ContainerDb(userDb,"User DB","PostgreSQL")
+ContainerDb(catalogDb,"Catalog DB","PostgreSQL")
+ContainerDb(orderDb,"Order DB","PostgreSQL")
+ContainerDb(paymentDb,"Payment DB","PostgreSQL")
+ContainerDb(notificationDb,"Notification DB","PostgreSQL")
+ContainerDb(recommendationDb,"Recommendation DB","PostgreSQL")
+
+Container(kafka, "Message Broker", "Kafka", "Асинхронная передача событий")
+
+}
+
+Rel(user, api,"HTTPS")
+
+Rel(api,userService,"REST")
+Rel(api,catalogService,"REST")
+Rel(api,orderService,"REST")
+Rel(api,paymentService,"REST")
+Rel(api,recommendationService,"REST")
+
+Rel(userService,userDb,"SQL")
+Rel(catalogService,catalogDb,"SQL")
+Rel(orderService,orderDb,"SQL")
+Rel(paymentService,paymentDb,"SQL")
+Rel(notificationService,notificationDb,"SQL")
+Rel(recommendationService,recommendationDb,"SQL")
+
+Rel(orderService,kafka,"Order events")
+Rel(paymentService,kafka,"Payment events")
+
+Rel(kafka,notificationService,"Events")
+
+Rel(userService,kafka,"User events")
+Rel(catalogService,kafka,"Catalog events")
+Rel(orderService,kafka,"Purchase history events")
+
+Rel(kafka,recommendationService,"Events")
+
+Rel(orderService,paymentService,"REST")
+
+}
+
+@enduml
