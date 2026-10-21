@@ -1,0 +1,19 @@
+name: checks
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make build test vet
+      - run: docker compose up --build -d --wait
+      - run: make integration
+      - run: make e2e
+      - if: failure()
+        run: docker compose logs --tail=100
+      - if: always()
+        run: docker compose down

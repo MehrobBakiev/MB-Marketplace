@@ -1,5 +1,55 @@
 services:
-  health-service:
-    build: .
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-marketplace}
+      POSTGRES_USER: ${POSTGRES_USER:-marketplace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-marketplace_local}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    image: redgate/flyway:11.15.0
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-marketplace}
+      FLYWAY_USER: ${POSTGRES_USER:-marketplace}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-marketplace_local}
+      FLYWAY_CONNECT_RETRIES: 10
+    volumes:
+      - ./migrations:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-marketplace}:${POSTGRES_PASSWORD:-marketplace_local}@postgres:5432/${POSTGRES_DB:-marketplace}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me-at-least-32-chars}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin-local-123!}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-20m}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-336h}
+      ORDER_CREATE_INTERVAL: ${ORDER_CREATE_INTERVAL:-1m}
+      ORDER_UPDATE_INTERVAL: ${ORDER_UPDATE_INTERVAL:-1m}
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
